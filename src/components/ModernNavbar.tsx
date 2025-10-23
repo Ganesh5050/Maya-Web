@@ -282,13 +282,13 @@ const ModernNavbar: React.FC = () => {
                  className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none"
                >
                  <div className="p-1 rounded-lg">
-                   <img 
-                     src="/favicon.ico" 
-                     alt="Maya-Web Logo" 
-                     className="w-8 h-8"
-                   />
-                 </div>
-                 <span className="text-xl font-bold text-white">Maya-Web</span>
+                  <img 
+                    src="/logo.svg" 
+                    alt="Maya-Web Logo" 
+                    className="w-8 h-8"
+                  />
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Maya-Web</span>
                </button>
              </div>
 
