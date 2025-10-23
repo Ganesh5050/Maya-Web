@@ -1,8 +1,4 @@
-import Groq from "groq-sdk";
-
-// Initialize Groq with API key
-const API_KEY = import.meta.env.VITE_GROQ_API_KEY || 'placeholder-key';
-const groq = new Groq({ apiKey: API_KEY, dangerouslyAllowBrowser: true });
+// SECURE VERSION - Calls backend API route instead of exposing API key in browser
 
 export interface WebsiteGenerationRequest {
   prompt: string;
@@ -32,13 +28,19 @@ export interface GeneratedWebsiteCode {
 export const groqService = {
   async generateWebsite(request: WebsiteGenerationRequest): Promise<GeneratedWebsiteCode> {
     try {
-      console.log("⚡ Calling GROQ AI (Llama 3.3) - ULTRA FAST & FREE!");
+      console.log("⚡ Calling GROQ AI (Llama 3.3) via secure backend - ULTRA FAST & FREE!");
 
-      const chatCompletion = await groq.chat.completions.create({
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert full-stack web developer and UI/UX designer. You create stunning, production-ready websites that look like they cost $10,000+.
+      // Call our secure backend API route instead of GROQ directly
+      const response = await fetch('/api/groq', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert full-stack web developer and UI/UX designer. You create stunning, production-ready websites that look like they cost $10,000+.
 
 YOUR EXPERTISE:
 - Modern design trends (glassmorphism, gradients, micro-interactions)
@@ -49,10 +51,10 @@ YOUR EXPERTISE:
 - Professional copywriting
 
 NEVER use placeholders or comments like "add more content here". Every section must be COMPLETE and FUNCTIONAL.`
-          },
-          {
-            role: "user",
-            content: `Create a COMPLETELY UNIQUE website for: "${request.prompt}" [Seed: ${Date.now().toString(36).slice(-4)}]
+            },
+            {
+              role: "user",
+              content: `Create a COMPLETELY UNIQUE website for: "${request.prompt}" [Seed: ${Date.now().toString(36).slice(-4)}]
 
 ⚠️ CRITICAL: This website MUST be UNIQUE - analyze "${request.prompt}" carefully and create something SPECIFIC to it!
 
@@ -146,21 +148,28 @@ FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
 }
 
 Generate NOW - be creative and professional!`
-          }
-        ],
-        model: "llama-3.3-70b-versatile", // ✅ Updated to latest model
-        temperature: 0.7,
-        max_tokens: 8000
+            }
+          ],
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.7,
+          max_tokens: 8000
+        })
       });
 
-      const response = chatCompletion.choices[0]?.message?.content || "";
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Backend API request failed');
+      }
+
+      const data = await response.json();
+      const aiResponse = data.choices[0]?.message?.content || "";
       console.log("✅ GROQ responded successfully!");
 
       // Parse the response
-      const htmlMatch = response.match(/===HTML===\s*([\s\S]*?)(?:===CSS===|$)/);
-      const cssMatch = response.match(/===CSS===\s*([\s\S]*?)(?:===JAVASCRIPT===|$)/);
-      const jsMatch = response.match(/===JAVASCRIPT===\s*([\s\S]*?)(?:===METADATA===|$)/);
-      const metadataMatch = response.match(/===METADATA===\s*([\s\S]*?)$/);
+      const htmlMatch = aiResponse.match(/===HTML===\s*([\s\S]*?)(?:===CSS===|$)/);
+      const cssMatch = aiResponse.match(/===CSS===\s*([\s\S]*?)(?:===JAVASCRIPT===|$)/);
+      const jsMatch = aiResponse.match(/===JAVASCRIPT===\s*([\s\S]*?)(?:===METADATA===|$)/);
+      const metadataMatch = aiResponse.match(/===METADATA===\s*([\s\S]*?)$/);
 
       let metadata = {
         title: "AI Generated Website",
@@ -204,15 +213,20 @@ Generate NOW - be creative and professional!`
     try {
       console.log("⚡ Modifying website with GROQ AI...");
 
-      const chatCompletion = await groq.chat.completions.create({
-        messages: [
-          {
-            role: "system",
-            content: "You are a web developer who modifies websites based on instructions."
-          },
-          {
-            role: "user",
-            content: `Modify this website based on the instruction.
+      const response = await fetch('/api/groq', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: "You are a web developer who modifies websites based on instructions."
+            },
+            {
+              role: "user",
+              content: `Modify this website based on the instruction.
 
 CURRENT HTML:
 ${currentHTML}
@@ -220,16 +234,22 @@ ${currentHTML}
 INSTRUCTION: ${instruction}
 
 Return ONLY the complete modified HTML, no explanations.`
-          }
-        ],
-        model: "llama-3.3-70b-versatile", // ✅ Updated to latest model
-        temperature: 0.5,
-        max_tokens: 8000
+            }
+          ],
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.5,
+          max_tokens: 8000
+        })
       });
 
-      const response = chatCompletion.choices[0]?.message?.content || currentHTML;
+      if (!response.ok) {
+        throw new Error('Backend API request failed');
+      }
+
+      const data = await response.json();
+      const modifiedHTML = data.choices[0]?.message?.content || currentHTML;
       console.log("✅ Website modified successfully!");
-      return response;
+      return modifiedHTML;
 
     } catch (error) {
       console.error("❌ GROQ modification error:", error);
@@ -237,4 +257,3 @@ Return ONLY the complete modified HTML, no explanations.`
     }
   }
 };
-

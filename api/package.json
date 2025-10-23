@@ -1,0 +1,8 @@
+{
+  "name": "maya-web-api",
+  "version": "1.0.0",
+  "description": "Secure serverless API routes for Maya-Web",
+  "private": true,
+  "type": "module"
+}
+

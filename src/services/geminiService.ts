@@ -1,8 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-// Initialize Gemini AI
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'placeholder-key';
-const genAI = new GoogleGenerativeAI(API_KEY);
+// SECURE VERSION - Calls backend API route instead of exposing API key in browser
 
 export interface WebsiteGenerationRequest {
   prompt: string;
@@ -24,11 +20,9 @@ export interface GeneratedWebsiteCode {
 export const geminiService = {
   async generateWebsite(request: WebsiteGenerationRequest): Promise<GeneratedWebsiteCode> {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" }); // ✅ Using correct model name
-
       const uniqueSeed = Date.now().toString(36).slice(-4);
       
-      const prompt = `You are an expert full-stack web developer and UI/UX designer. 
+      const fullPrompt = `You are an expert full-stack web developer and UI/UX designer. 
 
 Create a COMPLETELY UNIQUE website for: "${request.prompt}" [Seed: ${uniqueSeed}]
 
@@ -98,32 +92,52 @@ STRUCTURE YOUR RESPONSE EXACTLY LIKE THIS:
 [Complete CSS code here - all styling including animations]
 
 ===JAVASCRIPT===
-[Complete JavaScript code here - all interactions and animations]
+[Complete JavaScript code here - all interactivity]
 
 ===METADATA===
 {
   "title": "Website Title",
-  "description": "Brief description",
+  "description": "Website description",
   "features": ["Feature 1", "Feature 2", "Feature 3", "Feature 4", "Feature 5", "Feature 6"],
-  "sections": ["hero", "features", "about", "contact"],
-  "primaryColor": "#3b82f6",
-  "secondaryColor": "#8b5cf6"
+  "sections": ["hero", "features", "about", "testimonials", "contact"],
+  "primaryColor": "#hex",
+  "secondaryColor": "#hex"
 }
 
-Generate a professional, unique website NOW. No explanations, just code.`;
+Now generate the complete website!`;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      console.log("💎 Calling Gemini AI via secure backend...");
 
-      // Parse the response
-      const htmlMatch = text.match(/===HTML===\s*([\s\S]*?)(?:===CSS===|$)/);
-      const cssMatch = text.match(/===CSS===\s*([\s\S]*?)(?:===JAVASCRIPT===|$)/);
-      const jsMatch = text.match(/===JAVASCRIPT===\s*([\s\S]*?)(?:===METADATA===|$)/);
-      const metadataMatch = text.match(/===METADATA===\s*([\s\S]*?)$/);
+      // Call our secure backend API route
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: fullPrompt,
+          temperature: 0.8,
+          model: "gemini-2.0-flash-exp"
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Backend API request failed');
+      }
+
+      const data = await response.json();
+      const aiResponse = data.candidates[0]?.content?.parts[0]?.text || "";
+      console.log("✅ Gemini responded successfully!");
+
+      // Parse sections
+      const htmlMatch = aiResponse.match(/===HTML===\s*([\s\S]*?)(?:===CSS===|$)/);
+      const cssMatch = aiResponse.match(/===CSS===\s*([\s\S]*?)(?:===JAVASCRIPT===|$)/);
+      const jsMatch = aiResponse.match(/===JAVASCRIPT===\s*([\s\S]*?)(?:===METADATA===|$)/);
+      const metadataMatch = aiResponse.match(/===METADATA===\s*([\s\S]*?)$/);
 
       let metadata = {
-        title: "Generated Website",
+        title: "AI Generated Website",
         description: "A modern website built with AI",
         features: ["Responsive Design", "Modern UI", "Fast Performance", "SEO Optimized", "Mobile Friendly", "Interactive"],
         sections: ["hero", "features", "about", "contact"],
@@ -136,47 +150,67 @@ Generate a professional, unique website NOW. No explanations, just code.`;
           const metaText = metadataMatch[1].trim();
           const jsonMatch = metaText.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
-            metadata = JSON.parse(jsonMatch[0]);
+            metadata = { ...metadata, ...JSON.parse(jsonMatch[0]) };
           }
         } catch (e) {
           console.warn("Failed to parse metadata, using defaults");
         }
       }
 
+      const html = htmlMatch ? htmlMatch[1].trim() : '<div>Error generating HTML</div>';
+      const css = cssMatch ? cssMatch[1].trim() : '';
+      const javascript = jsMatch ? jsMatch[1].trim() : '';
+
       return {
-        html: htmlMatch ? htmlMatch[1].trim() : '<div>Error generating HTML</div>',
-        css: cssMatch ? cssMatch[1].trim() : '',
-        javascript: jsMatch ? jsMatch[1].trim() : '',
+        html,
+        css,
+        javascript,
         ...metadata
       };
 
     } catch (error) {
-      console.error("Gemini API Error:", error);
-      throw new Error("Failed to generate website with AI");
+      console.error("❌ Gemini API Error:", error);
+      throw error;
     }
   },
 
-  async modifyWebsite(currentCode: string, instruction: string): Promise<string> {
+  async modifyWebsite(currentHTML: string, instruction: string): Promise<string> {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" }); // ✅ Using correct model name
+      console.log("💎 Modifying website with Gemini AI...");
 
-      const prompt = `You are a web developer. Modify this website code based on the instruction.
+      const prompt = `You are a web developer who modifies websites based on instructions.
 
-CURRENT CODE:
-${currentCode}
+CURRENT HTML:
+${currentHTML}
 
 INSTRUCTION: ${instruction}
 
-Return ONLY the modified code, no explanations.`;
+Return ONLY the complete modified HTML code, no explanations or markdown.`;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return response.text();
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          temperature: 0.5,
+          model: "gemini-2.0-flash-exp"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Backend API request failed');
+      }
+
+      const data = await response.json();
+      const modifiedHTML = data.candidates[0]?.content?.parts[0]?.text || currentHTML;
+      console.log("✅ Website modified successfully!");
+      return modifiedHTML;
 
     } catch (error) {
-      console.error("Gemini API Error:", error);
-      throw new Error("Failed to modify website");
+      console.error("❌ Gemini modification error:", error);
+      throw error;
     }
   }
 };
-

@@ -1,7 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'placeholder-key';
-const genAI = new GoogleGenerativeAI(API_KEY);
+// SECURE VERSION - Calls backend API route instead of exposing API key in browser
 
 export interface MultiFileProject {
   title: string;
@@ -22,17 +19,8 @@ export interface MultiFileProject {
 export const advancedGeminiService = {
   async generateProject(prompt: string, framework: string = "React"): Promise<MultiFileProject> {
     try {
-      console.log(`💎 Generating ${framework} project with Gemini...`);
+      console.log(`💎 Generating ${framework} project with Gemini (via secure backend)...`);
       console.log(`📝 User prompt: "${prompt}"`);
-
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash-latest",
-        generationConfig: {
-          temperature: 2.0, // MAXIMUM creativity (Gemini supports up to 2.0)
-          topP: 1.0,
-          topK: 64,
-        }
-      });
 
       const systemContext = framework === "React" 
         ? this.getReactSystemPrompt()
@@ -102,61 +90,80 @@ FORMAT YOUR RESPONSE AS PURE JSON (no markdown, no code blocks):
   "framework": "${framework}",
   "primaryColor": "#hex",
   "secondaryColor": "#hex",
-  "features": ["Feature 1", "Feature 2", "Feature 3", "Feature 4", "Feature 5", "Feature 6"],
+  "features": ["Feature 1", "Feature 2", ...],
   "dependencies": {
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    ...
   },
   "files": {
     "src/App.tsx": {
-      "content": "complete file content here",
+      "content": "// Complete file content",
       "language": "typescript"
-    }
+    },
+    ...
   }
 }
 
-IMPORTANT: Return ONLY the JSON object, no explanations before or after!`;
+Generate NOW - be CREATIVE and UNIQUE!`;
 
-      const result = await model.generateContent(fullPrompt);
-      const response = result.response.text();
-      
-      console.log("✅ Gemini responded!");
+      // Call our secure backend API route
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: fullPrompt,
+          temperature: 2.0,
+          model: "gemini-2.0-flash-exp"
+        })
+      });
 
-      // Extract JSON from response (handle markdown code blocks if present)
-      let jsonText = response.trim();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Backend API request failed');
+      }
+
+      const data = await response.json();
+      const aiResponse = data.candidates[0]?.content?.parts[0]?.text || "";
+      console.log("✅ Gemini project generated!");
+
+      // Parse JSON (handle both pure JSON and markdown-wrapped JSON)
+      let jsonText = aiResponse.trim();
       
       // Remove markdown code blocks if present
-      if (jsonText.startsWith('```')) {
-        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      const codeBlockMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        jsonText = codeBlockMatch[1].trim();
       }
-      
-      // Find JSON object
+
+      // Find the JSON object
       const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        throw new Error("Failed to extract JSON from response");
+        throw new Error("Failed to parse project JSON");
       }
 
       const project = JSON.parse(jsonMatch[0]) as MultiFileProject;
-
+      
+      // Validate and ensure all required fields exist
       if (!project.files || Object.keys(project.files).length === 0) {
         throw new Error("No files generated");
       }
 
-      console.log(`✅ Generated ${Object.keys(project.files).length} files with Gemini`);
+      console.log(`✅ Generated ${Object.keys(project.files).length} files`);
       return project;
 
     } catch (error) {
-      console.error("❌ Gemini project generation failed:", error);
+      console.error("❌ Advanced Gemini generation failed:", error);
       throw error;
     }
   },
 
   async modifyFile(filePath: string, currentContent: string, instruction: string): Promise<string> {
     try {
-      console.log(`💎 Modifying ${filePath} with Gemini...`);
+      console.log(`💎 Modifying ${filePath}...`);
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-
-      const prompt = `You are an expert developer. Modify this file based on the instruction.
+      const prompt = `You are an expert developer. Modify code based on instructions while maintaining quality and structure.
 
 File: ${filePath}
 
@@ -167,37 +174,44 @@ ${currentContent}
 
 INSTRUCTION: ${instruction}
 
-Return ONLY the complete modified file content. No explanations, no markdown code blocks, just the raw file content.`;
+Return ONLY the complete modified file content, no explanations.`;
 
-      const result = await model.generateContent(prompt);
-      const response = result.response.text().trim();
-      
-      // Remove code blocks if present
-      let content = response;
-      if (content.startsWith('```')) {
-        content = content.replace(/```[a-z]*\n?/g, '');
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          temperature: 0.5,
+          model: "gemini-2.0-flash-exp"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Backend API request failed');
       }
 
-      console.log(`✅ ${filePath} modified with Gemini!`);
-      return content;
+      const data = await response.json();
+      const modifiedContent = data.candidates[0]?.content?.parts[0]?.text || currentContent;
+      console.log(`✅ ${filePath} modified!`);
+      return modifiedContent;
 
     } catch (error) {
-      console.error(`❌ Gemini file modification failed:`, error);
+      console.error(`❌ Failed to modify ${filePath}:`, error);
       throw error;
     }
   },
 
   async generateNewFile(filePath: string, description: string, projectContext: string): Promise<string> {
     try {
-      console.log(`💎 Creating ${filePath} with Gemini...`);
+      console.log(`💎 Generating new file: ${filePath}...`);
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
       const language = this.getLanguageFromPath(filePath);
 
-      const prompt = `Create a new file for an existing project.
+      const prompt = `You are an expert developer creating new files for existing projects.
 
-File Path: ${filePath}
-Language: ${language}
+Create a new file: ${filePath}
 
 DESCRIPTION: ${description}
 
@@ -205,27 +219,37 @@ PROJECT CONTEXT:
 ${projectContext}
 
 REQUIREMENTS:
+- Language: ${language}
 - Production-ready code
-- Proper imports and exports
-- Follow best practices
-- Include helpful comments
-- Match project style
+- Proper imports/exports
+- Follow project conventions
+- Include comments for clarity
 
-Return ONLY the file content. No explanations, no markdown, just the raw code.`;
+Return ONLY the file content, no explanations.`;
 
-      const result = await model.generateContent(prompt);
-      const response = result.response.text().trim();
-      
-      let content = response;
-      if (content.startsWith('```')) {
-        content = content.replace(/```[a-z]*\n?/g, '');
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          temperature: 0.6,
+          model: "gemini-2.0-flash-exp"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Backend API request failed');
       }
 
-      console.log(`✅ ${filePath} created with Gemini!`);
-      return content;
+      const data = await response.json();
+      const fileContent = data.candidates[0]?.content?.parts[0]?.text || "";
+      console.log(`✅ ${filePath} created!`);
+      return fileContent;
 
     } catch (error) {
-      console.error(`❌ Gemini file creation failed:`, error);
+      console.error(`❌ Failed to create ${filePath}:`, error);
       throw error;
     }
   },
@@ -246,65 +270,81 @@ Return ONLY the file content. No explanations, no markdown, just the raw code.`;
   },
 
   getReactSystemPrompt(): string {
-    return `You are an ELITE React/TypeScript developer creating production-ready applications.
+    return `You are an ELITE React developer who creates STUNNING, production-ready applications.
 
-EXPERTISE:
-- React 18+ with modern hooks
-- TypeScript for type safety  
+YOUR EXPERTISE:
+- React 18+ with hooks (useState, useEffect, useMemo, useCallback)
+- TypeScript for type safety
 - Tailwind CSS for styling
-- Framer Motion for animations
-- Clean architecture
-- Accessibility
-- Performance
+- Framer Motion for smooth animations
+- Component composition and reusability
+- Clean code architecture
+- Accessibility (WCAG 2.1 AA)
+- Performance optimization
 
-STANDARDS:
-- Functional components + TypeScript
-- Proper interfaces and types
-- Meaningful names
-- Named exports
-- Tailwind classes (no inline styles)
+CODING STANDARDS:
+- Use functional components with TypeScript
+- Proper prop types and interfaces
+- Meaningful variable names (no x, y, temp)
+- Component files: PascalCase (Hero.tsx, ContactForm.tsx)
+- Utility files: camelCase (helpers.ts, formatDate.ts)
+- CSS: BEM or Tailwind classes
 - Comments for complex logic only
+- Export components as named exports
 
-DESIGN:
-- Mobile-first responsive
-- 8px grid spacing
-- Smooth animations
-- Modern UI (cards, gradients, glass)
-- Micro-interactions
-- Professional colors
+DESIGN PRINCIPLES:
+- Mobile-first responsive design
+- Consistent spacing (8px grid)
+- Smooth animations (framer-motion)
+- Professional color schemes
+- Modern UI patterns (cards, gradients, glassmorphism)
+- Micro-interactions on hover/click
+- Loading states and error handling
 
-NEVER use placeholders, TODOs, or incomplete code!`;
+NEVER:
+- Use placeholder content ("Lorem ipsum", "Add content here")
+- Leave TODO comments
+- Create incomplete functions
+- Use inline styles (use Tailwind classes)
+- Ignore accessibility
+- Write sloppy code`;
   },
 
   getVanillaSystemPrompt(): string {
-    return `You are an ELITE vanilla JavaScript developer creating production-ready websites.
+    return `You are an ELITE vanilla JavaScript developer who creates STUNNING, production-ready websites.
 
-EXPERTISE:
+YOUR EXPERTISE:
 - Modern ES6+ JavaScript
-- Semantic HTML5
-- Advanced CSS3
+- Clean, semantic HTML5
+- Advanced CSS3 (Grid, Flexbox, Animations)
+- Progressive enhancement
 - Performance optimization
-- Accessibility
 - Cross-browser compatibility
+- Accessibility (WCAG 2.1 AA)
 
-STANDARDS:
-- const/let (never var)
-- Arrow functions
-- Template literals
-- Async/await
-- Semantic HTML
-- BEM CSS
-- Mobile-first
+CODING STANDARDS:
+- Use const/let (never var)
+- Arrow functions for callbacks
+- Template literals for strings
+- Async/await for promises
+- Proper error handling
+- Semantic HTML tags
+- BEM CSS methodology
+- Mobile-first CSS
 
-DESIGN:
-- Responsive design
+DESIGN PRINCIPLES:
+- Responsive design (mobile → desktop)
 - Smooth CSS transitions
-- Professional colors
-- 8px grid spacing
+- Professional color schemes
+- Consistent spacing (8px grid)
 - Modern UI patterns
-- Fast load times
+- Fast load times (<3s)
 
-NEVER use jQuery, placeholders, or incomplete code!`;
+NEVER:
+- Use jQuery or outdated libraries
+- Use placeholder content
+- Leave incomplete sections
+- Use inline styles
+- Ignore accessibility`;
   }
 };
-

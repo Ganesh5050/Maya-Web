@@ -1,8 +1,4 @@
-import Groq from "groq-sdk";
-
-// Initialize Groq with API key
-const API_KEY = import.meta.env.VITE_GROQ_API_KEY || 'placeholder-key';
-const groq = new Groq({ apiKey: API_KEY, dangerouslyAllowBrowser: true });
+// SECURE VERSION - Calls backend API route instead of exposing API key in browser
 
 export interface MultiFileProject {
   title: string;
@@ -26,7 +22,7 @@ export const advancedGroqService = {
    */
   async generateProject(prompt: string, framework: string = "React"): Promise<MultiFileProject> {
     try {
-      console.log(`⚡ Generating ${framework} project with GROQ AI...`);
+      console.log(`⚡ Generating ${framework} project with GROQ AI (via secure backend)...`);
       console.log(`📝 User prompt: "${prompt}"`);
 
       const systemPrompt = framework === "React" 
@@ -36,15 +32,21 @@ export const advancedGroqService = {
       // Add randomization seed to ensure uniqueness
       const uniqueSeed = Date.now().toString(36).slice(-4);
       
-      const chatCompletion = await groq.chat.completions.create({
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: `Create a COMPLETELY UNIQUE ${framework} website for: "${prompt}" [Seed: ${uniqueSeed}]
+      // Call our secure backend API route
+      const response = await fetch('/api/groq', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt
+            },
+            {
+              role: "user",
+              content: `Create a COMPLETELY UNIQUE ${framework} website for: "${prompt}" [Seed: ${uniqueSeed}]
 
 🎯 CRITICAL REQUIREMENTS:
 1. **ANALYZE THE PROMPT**: Read "${prompt}" carefully and create something SPECIFIC to it
@@ -117,20 +119,25 @@ FORMAT YOUR RESPONSE AS JSON:
 }
 
 Generate a COMPLETE, UNIQUE project NOW!`
-          }
-        ],
-        model: "llama-3.3-70b-versatile",
-        temperature: 1.0, // MAXIMUM creativity for unique, diverse designs
-        max_tokens: 32000, // MAXIMUM tokens for complex projects
-        top_p: 1.0, // Maximum diversity in output
-        stream: false // We'll add streaming separately
+            }
+          ],
+          model: "llama-3.3-70b-versatile",
+          temperature: 1.0,
+          max_tokens: 32000
+        })
       });
 
-      const response = chatCompletion.choices[0]?.message?.content || "";
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Backend API request failed');
+      }
+
+      const data = await response.json();
+      const aiResponse = data.choices[0]?.message?.content || "";
       console.log("✅ GROQ project generated!");
 
       // Parse JSON response
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error("Failed to parse project JSON");
       }
@@ -158,15 +165,20 @@ Generate a COMPLETE, UNIQUE project NOW!`
     try {
       console.log(`⚡ Modifying ${filePath}...`);
 
-      const chatCompletion = await groq.chat.completions.create({
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert developer. Modify code based on instructions while maintaining quality and structure."
-          },
-          {
-            role: "user",
-            content: `File: ${filePath}
+      const response = await fetch('/api/groq', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: "You are an expert developer. Modify code based on instructions while maintaining quality and structure."
+            },
+            {
+              role: "user",
+              content: `File: ${filePath}
 
 CURRENT CONTENT:
 \`\`\`
@@ -176,16 +188,22 @@ ${currentContent}
 INSTRUCTION: ${instruction}
 
 Return ONLY the complete modified file content, no explanations.`
-          }
-        ],
-        model: "llama-3.3-70b-versatile",
-        temperature: 0.5,
-        max_tokens: 8000
+            }
+          ],
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.5,
+          max_tokens: 8000
+        })
       });
 
-      const response = chatCompletion.choices[0]?.message?.content || currentContent;
+      if (!response.ok) {
+        throw new Error('Backend API request failed');
+      }
+
+      const data = await response.json();
+      const modifiedContent = data.choices[0]?.message?.content || currentContent;
       console.log(`✅ ${filePath} modified!`);
-      return response;
+      return modifiedContent;
 
     } catch (error) {
       console.error(`❌ Failed to modify ${filePath}:`, error);
@@ -202,15 +220,20 @@ Return ONLY the complete modified file content, no explanations.`
 
       const language = this.getLanguageFromPath(filePath);
 
-      const chatCompletion = await groq.chat.completions.create({
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert developer creating new files for existing projects."
-          },
-          {
-            role: "user",
-            content: `Create a new file: ${filePath}
+      const response = await fetch('/api/groq', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: "You are an expert developer creating new files for existing projects."
+            },
+            {
+              role: "user",
+              content: `Create a new file: ${filePath}
 
 DESCRIPTION: ${description}
 
@@ -225,16 +248,22 @@ REQUIREMENTS:
 - Include comments for clarity
 
 Return ONLY the file content, no explanations.`
-          }
-        ],
-        model: "llama-3.3-70b-versatile",
-        temperature: 0.6,
-        max_tokens: 4000
+            }
+          ],
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.6,
+          max_tokens: 4000
+        })
       });
 
-      const response = chatCompletion.choices[0]?.message?.content || "";
+      if (!response.ok) {
+        throw new Error('Backend API request failed');
+      }
+
+      const data = await response.json();
+      const fileContent = data.choices[0]?.message?.content || "";
       console.log(`✅ ${filePath} created!`);
-      return response;
+      return fileContent;
 
     } catch (error) {
       console.error(`❌ Failed to create ${filePath}:`, error);
@@ -336,4 +365,3 @@ NEVER:
 - Ignore accessibility`;
   }
 };
-
