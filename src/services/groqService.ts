@@ -1,4 +1,5 @@
-// SECURE VERSION - Calls backend API route instead of exposing API key in browser
+// SECURE VERSION - Calls Vercel Serverless Function (works with frontend-only deployment!)
+// ✅ API keys are protected server-side via /api/groq route
 
 export interface WebsiteGenerationRequest {
   prompt: string;
@@ -28,9 +29,9 @@ export interface GeneratedWebsiteCode {
 export const groqService = {
   async generateWebsite(request: WebsiteGenerationRequest): Promise<GeneratedWebsiteCode> {
     try {
-      console.log("⚡ Calling GROQ AI (Llama 3.3) via secure backend - ULTRA FAST & FREE!");
+      console.log("⚡ Calling GROQ AI (Llama 3.3) via secure serverless function - ULTRA FAST & FREE!");
 
-      // Call our secure backend API route instead of GROQ directly
+      // Call Vercel Serverless Function (automatically deployed with your frontend!)
       const response = await fetch('/api/groq', {
         method: 'POST',
         headers: {
