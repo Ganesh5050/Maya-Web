@@ -1,10 +1,7 @@
 import Groq from "groq-sdk";
 
 // Initialize Groq with API key
-const API_KEY = import.meta.env.VITE_GROQ_API_KEY;
-if (!API_KEY) {
-  throw new Error('Missing VITE_GROQ_API_KEY environment variable');
-}
+const API_KEY = import.meta.env.VITE_GROQ_API_KEY || 'placeholder-key';
 const groq = new Groq({ apiKey: API_KEY, dangerouslyAllowBrowser: true });
 
 export interface WebsiteGenerationRequest {

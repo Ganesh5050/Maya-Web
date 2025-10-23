@@ -1,10 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 // Initialize Claude AI
-const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
-if (!API_KEY) {
-  throw new Error('Missing VITE_ANTHROPIC_API_KEY environment variable');
-}
+const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY || 'placeholder-key';
 const anthropic = new Anthropic({
   apiKey: API_KEY,
   dangerouslyAllowBrowser: true

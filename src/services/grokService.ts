@@ -1,10 +1,7 @@
 import OpenAI from 'openai';
 
 // Initialize xAI Grok
-const API_KEY = import.meta.env.VITE_XAI_API_KEY;
-if (!API_KEY) {
-  throw new Error('Missing VITE_XAI_API_KEY environment variable');
-}
+const API_KEY = import.meta.env.VITE_XAI_API_KEY || 'placeholder-key';
 const xai = new OpenAI({
   apiKey: API_KEY,
   baseURL: "https://api.x.ai/v1",
