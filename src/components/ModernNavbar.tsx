@@ -283,9 +283,9 @@ const ModernNavbar: React.FC = () => {
                >
                  <div className="p-1 rounded-lg">
                   <img 
-                    src="/favicon.ico" 
+                    src="/favicon.ico?v=2" 
                     alt="Maya-Web Logo" 
-                    className="w-8 h-8"
+                    className="w-8 h-8 object-contain"
                   />
                 </div>
                 <span className="text-xl font-bold text-white">Maya-Web</span>
